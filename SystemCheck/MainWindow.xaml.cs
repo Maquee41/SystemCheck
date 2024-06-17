@@ -64,7 +64,6 @@ namespace SystemCheck
                 sb.AppendLine($"  Частота: {processor["MaxClockSpeed"]} MHz");
             }
 
-
             sb.AppendLine("|Оперативная память|");
             foreach (var memory in new ManagementObjectSearcher("SELECT Capacity, Speed FROM Win32_PhysicalMemory").Get())
             {
@@ -99,19 +98,28 @@ namespace SystemCheck
 
         private string GetRegistryInformation()
         {
-            string registryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-            StringBuilder registryInfo = new StringBuilder();
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(registryKey))
+            StringBuilder sb = new StringBuilder();
+            foreach (string keyName in Registry.ClassesRoot.GetSubKeyNames())
             {
-                foreach (string subkeyName in key.GetSubKeyNames())
+                using (RegistryKey key = Registry.ClassesRoot.OpenSubKey(keyName))
                 {
-                    using (RegistryKey subkey = key.OpenSubKey(subkeyName))
+                    if (key != null)
                     {
-                        registryInfo.AppendLine($"{subkey.GetValue("DisplayName")} - {subkey.GetValue("DisplayVersion")}");
+                        // Собираем информацию о каждом ключе
+                        sb.AppendLine($"Ключ: {keyName}");
+                        sb.AppendLine("Описание:");
+                        sb.Append(key.GetValue("Description"));
+                        sb.AppendLine("\nЗначения:");
+                        foreach (var valueName in key.GetValueNames())
+                        {
+                            var value = key.GetValue(valueName);
+                            sb.AppendLine($"{valueName}: {value}");
+                        }
+                        sb.AppendLine("-----------------------------");
                     }
                 }
             }
-            return registryInfo.ToString();
+            return sb.ToString();
         }
 
         private string GetInstalledProgramsInformation()
@@ -121,7 +129,7 @@ namespace SystemCheck
             string registryKey64 = @"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
 
             // Получение 64-разрядных программ
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(registryKey32))
+            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(registryKey64))
             {
                 foreach (string subkeyName in key.GetSubKeyNames())
                 {
@@ -138,7 +146,7 @@ namespace SystemCheck
             }
 
             // Получение 32-разрядных программ
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(registryKey64))
+            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(registryKey32))
             {
                 foreach (string subkeyName in key.GetSubKeyNames())
                 {
@@ -168,10 +176,8 @@ namespace SystemCheck
                 mainPart.Document = new Document();
                 Body body = new Body();
 
-                // Добавляем заголовок
                 body.Append(new Paragraph(new Run(new Text(title))));
 
-                // Разделение контента на строки и добавление каждой строки как нового параграфа
                 string[] lines = content.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
                 foreach (string line in lines)
                 {
@@ -184,6 +190,5 @@ namespace SystemCheck
 
             return filePath;
         }
-
     }
 }
